@@ -1,0 +1,6 @@
+{
+  "name": "Monitoring Lokasi & Dokumentasi Project",
+  "description": "Website monitoring lokasi proyek dengan dokumentasi area, persetujuan foto oleh Project Manager, request dokumentasi baru, serta fitur ambil gambar langsung dari kamera oleh Site Manager.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
