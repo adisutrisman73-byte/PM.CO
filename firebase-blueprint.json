@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Construction projects being monitored",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "location": { "type": "string" },
+        "managerName": { "type": "string" },
+        "siteManagerName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "code"]
+    },
+    "Area": {
+      "title": "Area",
+      "description": "Specific areas assigned to projects",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "projectId", "name", "category"]
+    },
+    "Record": {
+      "title": "Record",
+      "description": "Historic project status photo submissions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "areaId": { "type": "string" },
+        "areaName": { "type": "string" },
+        "description": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "submittedBy": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "status": { "type": "string" },
+        "feedback": { "type": "string" },
+        "requestId": { "type": "string" }
+      },
+      "required": ["id", "projectId", "areaId", "areaName", "photoUrl", "submittedBy", "submittedAt", "status"]
+    },
+    "Request": {
+      "title": "Request",
+      "description": "Task/documentation requests by Project Managers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "requestedArea": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string" },
+        "deadline": { "type": "string" },
+        "status": { "type": "string" },
+        "requestedBy": { "type": "string" },
+        "requestedAt": { "type": "string" },
+        "completedAt": { "type": "string" },
+        "completedRecordId": { "type": "string" },
+        "isRecurring": { "type": "boolean" }
+      },
+      "required": ["id", "projectId", "requestedArea", "description", "priority", "deadline", "status", "requestedBy", "requestedAt"]
+    },
+    "Sketch": {
+      "title": "Sketch",
+      "description": "Camera sketch and floorplan blueprint markers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "areaId": { "type": "string" },
+        "title": { "type": "string" },
+        "blueprintType": { "type": "string" },
+        "markers": { "type": "array" },
+        "customLines": { "type": "array" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "projectId", "areaId", "title", "blueprintType", "markers", "customLines", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Main projects collection"
+    },
+    "/areas/{areaId}": {
+      "schema": "Area",
+      "description": "Project areas"
+    },
+    "/records/{recordId}": {
+      "schema": "Record",
+      "description": "Documentation records/photos"
+    },
+    "/requests/{requestId}": {
+      "schema": "Request",
+      "description": "Requests database"
+    },
+    "/sketches/{sketchId}": {
+      "schema": "Sketch",
+      "description": "蓝图 Blueprints and camera placements"
+    }
+  }
+}

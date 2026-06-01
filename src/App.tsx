@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { db, OperationType, handleFirestoreError } from "./firebase";
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { 
   INITIAL_AREAS, 
   INITIAL_RECORDS, 
   INITIAL_REQUESTS 
 } from "./initialData";
-import { ProjectArea, DocumentationRecord, DocumentationRequest, UserRole, Project } from "./types";
+import { ProjectArea, DocumentationRecord, DocumentationRequest, UserRole, Project, RecordStatus } from "./types";
 import { 
   Camera, 
   Shield, 
@@ -39,6 +41,46 @@ import RequestModal from "./components/RequestModal";
 import StorageManager from "./components/StorageManager";
 import ProjectSelector from "./components/ProjectSelector";
 import CameraSketcher from "./components/CameraSketcher";
+
+const writeProjectToFirestore = async (proj: Project) => {
+  try {
+    await setDoc(doc(db, "projects", proj.id), proj);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `projects/${proj.id}`);
+  }
+};
+
+const writeAreaToFirestore = async (area: ProjectArea) => {
+  try {
+    await setDoc(doc(db, "areas", area.id), area);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `areas/${area.id}`);
+  }
+};
+
+const writeRecordToFirestore = async (rec: DocumentationRecord) => {
+  try {
+    await setDoc(doc(db, "records", rec.id), rec);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `records/${rec.id}`);
+  }
+};
+
+const writeRequestToFirestore = async (req: DocumentationRequest) => {
+  try {
+    await setDoc(doc(db, "requests", req.id), req);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `requests/${req.id}`);
+  }
+};
+
+const deleteRecordFromFirestore = async (recordId: string) => {
+  try {
+    await deleteDoc(doc(db, "records", recordId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `records/${recordId}`);
+  }
+};
 
 export default function App() {
   // Multi-Project state initialized from localStorage with initial default templates
@@ -151,6 +193,84 @@ export default function App() {
     localStorage.setItem("construx_requests", JSON.stringify(requests));
   }, [requests]);
 
+  // Realtime Firebase Firestore listeners with automatic local sync & seed fallback
+  useEffect(() => {
+    const unsubProjects = onSnapshot(collection(db, "projects"), (snapshot) => {
+      const items: Project[] = [];
+      snapshot.forEach(d => {
+        items.push(d.data() as Project);
+      });
+      if (items.length > 0) {
+        setProjects(items);
+      } else {
+        projects.forEach(p => {
+          writeProjectToFirestore(p);
+        });
+      }
+    }, (error) => {
+      console.error("Firebase Projects sync error:", error);
+      handleFirestoreError(error, OperationType.LIST, "projects");
+    });
+
+    const unsubAreas = onSnapshot(collection(db, "areas"), (snapshot) => {
+      const items: ProjectArea[] = [];
+      snapshot.forEach(d => {
+        items.push(d.data() as ProjectArea);
+      });
+      if (items.length > 0) {
+        setAreas(items);
+      } else {
+        areas.forEach(a => {
+          writeAreaToFirestore(a);
+        });
+      }
+    }, (error) => {
+      console.error("Firebase Areas sync error:", error);
+      handleFirestoreError(error, OperationType.LIST, "areas");
+    });
+
+    const unsubRecords = onSnapshot(collection(db, "records"), (snapshot) => {
+      const items: DocumentationRecord[] = [];
+      snapshot.forEach(d => {
+        items.push(d.data() as DocumentationRecord);
+      });
+      if (items.length > 0) {
+        setRecords(items);
+      } else {
+        records.forEach(r => {
+          writeRecordToFirestore(r);
+        });
+      }
+    }, (error) => {
+      console.error("Firebase Records sync error:", error);
+      handleFirestoreError(error, OperationType.LIST, "records");
+    });
+
+    const unsubRequests = onSnapshot(collection(db, "requests"), (snapshot) => {
+      const items: DocumentationRequest[] = [];
+      snapshot.forEach(d => {
+        items.push(d.data() as DocumentationRequest);
+      });
+      if (items.length > 0) {
+        setRequests(items);
+      } else {
+        requests.forEach(req => {
+          writeRequestToFirestore(req);
+        });
+      }
+    }, (error) => {
+      console.error("Firebase Requests sync error:", error);
+      handleFirestoreError(error, OperationType.LIST, "requests");
+    });
+
+    return () => {
+      unsubProjects();
+      unsubAreas();
+      unsubRecords();
+      unsubRequests();
+    };
+  }, []);
+
   // Automated Daily Recurring engine
   useEffect(() => {
     if (requests.length === 0) return;
@@ -238,6 +358,7 @@ export default function App() {
       category,
       createdAt: new Date().toISOString()
     };
+    writeAreaToFirestore(newArea);
     setAreas(prev => [newArea, ...prev]);
     return newArea;
   };
@@ -252,18 +373,21 @@ export default function App() {
       status: "pending_approval"
     };
 
+    writeRecordToFirestore(newRecord);
     setRecords(prev => [newRecord, ...prev]);
 
     // Update associated request to completed status (if linked)
     if (recordData.requestId) {
       setRequests(prev => prev.map(req => {
         if (req.id === recordData.requestId) {
-          return {
+          const updatedReq = {
             ...req,
-            status: "completed",
+            status: "completed" as const,
             completedAt: new Date().toISOString(),
             completedRecordId: newRecord.id
           };
+          writeRequestToFirestore(updatedReq);
+          return updatedReq;
         }
         return req;
       }));
@@ -293,6 +417,7 @@ export default function App() {
       isRecurring
     };
 
+    writeRequestToFirestore(newRequest);
     setRequests(prev => [newRequest, ...prev]);
   };
 
@@ -300,7 +425,9 @@ export default function App() {
   const handleApproveRecord = (recordId: string) => {
     setRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
-        return { ...rec, status: "approved", feedback: undefined };
+        const updated = { ...rec, status: "approved" as RecordStatus, feedback: undefined };
+        writeRecordToFirestore(updated);
+        return updated;
       }
       return rec;
     }));
@@ -315,11 +442,13 @@ export default function App() {
 
     setRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
-        return { 
+        const updated = { 
           ...rec, 
-          status: "rejected", 
+          status: "rejected" as RecordStatus, 
           feedback: `Revisi: ${reason}` 
         };
+        writeRecordToFirestore(updated);
+        return updated;
       }
       return rec;
     }));
@@ -329,12 +458,14 @@ export default function App() {
     if (targetRecord && targetRecord.requestId) {
       setRequests(prev => prev.map(req => {
         if (req.id === targetRecord.requestId) {
-          return {
+          const updatedReq = {
             ...req,
-            status: "pending",
+            status: "pending" as const,
             completedAt: undefined,
             completedRecordId: undefined
           };
+          writeRequestToFirestore(updatedReq);
+          return updatedReq;
         }
         return req;
       }));
@@ -356,18 +487,21 @@ export default function App() {
     const targetRecord = records.find(r => r.id === recordId);
     
     // Remove the record
+    deleteRecordFromFirestore(recordId);
     setRecords(prev => prev.filter(r => r.id !== recordId));
 
     // If this record was linked to a request, revert request back to "pending"
     if (targetRecord && targetRecord.requestId) {
       setRequests(prev => prev.map(req => {
         if (req.id === targetRecord.requestId) {
-          return {
+          const updatedReq = {
             ...req,
-            status: "pending",
+            status: "pending" as const,
             completedAt: undefined,
             completedRecordId: undefined
           };
+          writeRequestToFirestore(updatedReq);
+          return updatedReq;
         }
         return req;
       }));
@@ -385,6 +519,7 @@ export default function App() {
       siteManagerName,
       createdAt: new Date().toISOString()
     };
+    writeProjectToFirestore(newProj);
     setProjects(prev => [...prev, newProj]);
     setActiveProjectId(newProj.id);
   };
@@ -393,7 +528,7 @@ export default function App() {
   const handleUpdateProject = (id: string, name: string, code: string, location: string, managerName: string, siteManagerName: string) => {
     setProjects(prev => prev.map(p => {
       if (p.id === id) {
-        return {
+        const updated = {
           ...p,
           name,
           code,
@@ -401,6 +536,8 @@ export default function App() {
           managerName,
           siteManagerName
         };
+        writeProjectToFirestore(updated);
+        return updated;
       }
       return p;
     }));
@@ -411,12 +548,20 @@ export default function App() {
     importedRecords: DocumentationRecord[], 
     importedRequests: DocumentationRequest[]
   ) => {
+    importedAreas.forEach(writeAreaToFirestore);
+    importedRecords.forEach(writeRecordToFirestore);
+    importedRequests.forEach(writeRequestToFirestore);
     setAreas(importedAreas);
     setRecords(importedRecords);
     setRequests(importedRequests);
   };
 
   const handleClearAllStorage = () => {
+    areas.forEach(a => deleteDoc(doc(db, "areas", a.id)).catch(e => console.error(e)));
+    records.forEach(r => deleteDoc(doc(db, "records", r.id)).catch(e => console.error(e)));
+    requests.forEach(req => deleteDoc(doc(db, "requests", req.id)).catch(e => console.error(e)));
+    projects.forEach(p => deleteDoc(doc(db, "projects", p.id)).catch(e => console.error(e)));
+
     localStorage.removeItem("construx_areas");
     localStorage.removeItem("construx_records");
     localStorage.removeItem("construx_requests");
