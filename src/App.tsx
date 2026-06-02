@@ -130,7 +130,14 @@ export default function App() {
 
   const [records, setRecords] = useState<DocumentationRecord[]>(() => {
     const saved = localStorage.getItem("construx_records");
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as DocumentationRecord[];
+        return parsed.filter(r => r.photoUrl && !r.photoUrl.includes("unsplash.com") && !["rec-1", "rec-2", "rec-3", "rec-4", "rec-5"].includes(r.id));
+      } catch (err) {
+        return [];
+      }
+    }
     // Assigning default project ID to initial records for backward compatibility
     return INITIAL_RECORDS.map(r => ({ ...r, projectId: "project-1" }));
   });
@@ -232,15 +239,15 @@ export default function App() {
     const unsubRecords = onSnapshot(collection(db, "records"), (snapshot) => {
       const items: DocumentationRecord[] = [];
       snapshot.forEach(d => {
-        items.push(d.data() as DocumentationRecord);
+        const data = d.data() as DocumentationRecord;
+        if (data.photoUrl && !data.photoUrl.includes("unsplash.com") && !["rec-1", "rec-2", "rec-3", "rec-4", "rec-5"].includes(data.id)) {
+          items.push(data);
+        } else {
+          // Silently delete default/unsplash records so they never exist in Firestore
+          deleteDoc(doc(db, "records", data.id)).catch(() => {});
+        }
       });
-      if (items.length > 0) {
-        setRecords(items);
-      } else {
-        records.forEach(r => {
-          writeRecordToFirestore(r);
-        });
-      }
+      setRecords(items);
     }, (error) => {
       console.error("Firebase Records sync error:", error);
       handleFirestoreError(error, OperationType.LIST, "records");
@@ -734,8 +741,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* TABS SWITCH NAVIGATION */}
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-white/5 w-full sm:w-fit" id="main-navigation-tabs">
+        {/* COHESIVE TAB & WORKSPACE WRAPPER FOR GAPS/SPACING TIGHTENING */}
+        <div id="cohesive-tabset-wrapper" className="space-y-4">
+          {/* TABS SWITCH NAVIGATION */}
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-white/5 w-full sm:w-fit" id="main-navigation-tabs">
           <button
             onClick={() => setActiveTab("monitoring")}
             className={`px-5 py-2 rounded-lg text-xs font-sans font-bold transition flex items-center gap-2 cursor-pointer ${
@@ -1215,6 +1224,7 @@ export default function App() {
             />
           </div>
         )}
+        </div>
 
       </main>
 

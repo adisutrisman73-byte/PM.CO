@@ -103,10 +103,6 @@ export default function ProjectSelector({
 
   return (
     <>
-      <div id="project-selector-wrapper" className="hidden" style={{ display: "none" }}>
-        {/* Main page UI is completely empty to prevent clutter and save space on the viewport */}
-      </div>
-
       {/* CREATE NEW PROJECT MODAL OVERLAY */}
       {isCreating && (
         <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" id="project-creation-overlay">

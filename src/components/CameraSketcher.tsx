@@ -370,7 +370,7 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
               setNewSketchTitle("");
               setIsCreatingNew(true);
             }}
-            className="px-3.5 py-1.5 bg-slate-9ml bg-cyan-600 hover:bg-cyan-500 hover:scale-[1.01] text-slate-950 font-sans font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-md"
+            className="px-4 py-2.5 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-sans font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95 whitespace-nowrap shrink-0 select-none"
             id="btn-trigger-new-sketch"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -667,8 +667,8 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
                       const radAngle = (marker.angle * Math.PI) / 180;
                       const halfFovRad = ((marker.viewCone / 2) * Math.PI) / 180;
                       
-                      // Cone length in drawing coordinate space percentage raw representation
-                      const coneLen = 22; 
+                      // Cone length in drawing coordinate space percentage raw representation (default 22)
+                      const coneLen = marker.range ?? 22; 
                       
                       // Target coordinates for FOV visual sweep sector arcs
                       const startX = marker.x + coneLen * Math.cos(radAngle - halfFovRad);
@@ -676,15 +676,69 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
                       const endX = marker.x + coneLen * Math.cos(radAngle + halfFovRad);
                       const endY = marker.y + coneLen * Math.sin(radAngle + halfFovRad);
 
+                      // Middle range arcs coordinates at 50% & 75%
+                      const m50 = coneLen * 0.5;
+                      const m50X1 = marker.x + m50 * Math.cos(radAngle - halfFovRad);
+                      const m50Y1 = marker.y + m50 * Math.sin(radAngle - halfFovRad);
+                      const m50X2 = marker.x + m50 * Math.cos(radAngle + halfFovRad);
+                      const m50Y2 = marker.y + m50 * Math.sin(radAngle + halfFovRad);
+
+                      const m75 = coneLen * 0.75;
+                      const m75X1 = marker.x + m75 * Math.cos(radAngle - halfFovRad);
+                      const m75Y1 = marker.y + m75 * Math.sin(radAngle - halfFovRad);
+                      const m75X2 = marker.x + m75 * Math.cos(radAngle + halfFovRad);
+                      const m75Y2 = marker.y + m75 * Math.sin(radAngle + halfFovRad);
+
                       return (
                         <g key={marker.id} className="pointer-events-none">
+                          {/* Full potential 360-degree reach circular orbit helper for selected node */}
+                          {isSelected && (
+                            <>
+                              {/* Maximum envelope range circle */}
+                              <circle
+                                cx={`${marker.x}%`}
+                                cy={`${marker.y}%`}
+                                r={`${coneLen}%`}
+                                className="fill-cyan-500/[0.015] stroke-cyan-500/20 stroke-[1] stroke-dasharray-[3,4]"
+                                strokeDasharray="3,4"
+                              />
+                              {/* Standard inner threshold marker ring */}
+                              <circle
+                                cx={`${marker.x}%`}
+                                cy={`${marker.y}%`}
+                                r={`${coneLen * 0.5}%`}
+                                className="fill-none stroke-cyan-500/10 stroke-[0.75] stroke-dasharray-[2,4]"
+                                strokeDasharray="2,4"
+                              />
+                            </>
+                          )}
+
                           {/* Radial sector path for FOV lighting */}
                           <path
                             d={`M ${marker.x}% ${marker.y}% L ${startX}% ${startY}% A ${coneLen}% ${coneLen}% 0 0 1 ${endX}% ${endY}% Z`}
                             className={`fill-cyan-500/10 stroke-cyan-400/25 stroke-[1.5] transition-all duration-150 ${
-                              isSelected ? "fill-cyan-400/20 stroke-cyan-300/40" : ""
+                              isSelected ? "fill-cyan-400/20 stroke-cyan-300/65 stroke-[2] animate-pulse" : ""
                             }`}
                           />
+
+                          {/* Concentric distance sector arcs for depth-of-field zoning (only active pin) */}
+                          {isSelected && (
+                            <>
+                              {/* 50% Distance Zone Arc */}
+                              <path
+                                d={`M ${m50X1}% ${m50Y1}% A ${m50}% ${m50}% 0 0 1 ${m50X2}% ${m50Y2}%`}
+                                className="fill-none stroke-cyan-400/50 stroke-[1.25] stroke-dasharray-[1,2]"
+                                strokeDasharray="1,2"
+                              />
+                              {/* 75% Distance Zone Arc */}
+                              <path
+                                d={`M ${m75X1}% ${m75Y1}% A ${m75}% ${m75}% 0 0 1 ${m75X2}% ${m75Y2}%`}
+                                className="fill-none stroke-cyan-400/35 stroke-[1] stroke-dasharray-[1,2]"
+                                strokeDasharray="1,2"
+                              />
+                            </>
+                          )}
+
                           {/* Compass centerline needle pointer arrow for direction orient */}
                           <line
                             x1={`${marker.x}%`}
@@ -729,17 +783,96 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
                             }`}
                           />
                           
-                          {/* Mini camera visual glyph inside SVG */}
-                          <circle
-                            cx={`${marker.x}%`}
-                            cy={`${marker.y}%`}
-                            r="4.5"
-                            className={`transition ${isSelected ? "fill-cyan-200" : "fill-slate-300"}`}
-                          />
-                          <path
-                            d={`M ${marker.x - 3} ${marker.y - 1} h 6 v 2.5 h -6 Z`}
-                            className={`transition ${isSelected ? "fill-cyan-300" : "fill-slate-400"}`}
-                          />
+                          {/* High-fidelity rotating CCTV camera visual icon */}
+                          <svg
+                            x={`${marker.x}%`}
+                            y={`${marker.y}%`}
+                            width="32"
+                            height="32"
+                            viewBox="0 0 32 32"
+                            className="overflow-visible"
+                            style={{
+                              transform: `translate(-16px, -16px) rotate(${marker.angle}deg)`,
+                              transformOrigin: '16px 16px',
+                              transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                            }}
+                          >
+                            {/* Antenna pointing backward */}
+                            <line 
+                              x1="12" 
+                              y1="11" 
+                              x2="6" 
+                              y2="5" 
+                              stroke={isSelected ? "#22d3ee" : "#64748b"} 
+                              strokeWidth="1.25" 
+                              strokeLinecap="round"
+                            />
+                            <circle 
+                              cx="6" 
+                              cy="5" 
+                              r="1" 
+                              fill={isSelected ? "#22d3ee" : "#64748b"} 
+                            />
+
+                            {/* Mounting Base Socket */}
+                            <circle 
+                              cx="13" 
+                              cy="16" 
+                              r="2" 
+                              fill={isSelected ? "#083344" : "#1e293b"} 
+                              stroke={isSelected ? "#22d3ee" : "#475569"} 
+                              strokeWidth="1" 
+                            />
+                            {/* Mounting bracket arm */}
+                            <path 
+                              d="M 13,16 h 4 v -3" 
+                              stroke={isSelected ? "#22d3ee" : "#94a3b8"} 
+                              strokeWidth="1.5" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              fill="none"
+                            />
+
+                            {/* CCTV Bullet Body / Housing Shell */}
+                            <path
+                              d="M 11,9 h 10 l 1.5,-1 v 6.5 l -1.5,-1 h -10 Q 9.5,11.5 11,9 Z"
+                              fill="#0f172a"
+                              stroke={isSelected ? "#22d3ee" : "#94a3b8"}
+                              strokeWidth="1.25"
+                              strokeLinejoin="round"
+                            />
+
+                            {/* Bullet Camera Top Sun/Rain Visor Plate Shield */}
+                            <path 
+                              d="M 10,8 h 13" 
+                              stroke={isSelected ? "#67e8f9" : "#cbd5e1"} 
+                              strokeWidth="1.25" 
+                              strokeLinecap="round"
+                            />
+
+                            {/* Dark Tinted Front Glass Shield Panel */}
+                            <path 
+                              d="M 21,8 L 22.5,8 v 6.5 L 21,14.5 Z" 
+                              fill="#020617" 
+                            />
+
+                            {/* Real-time Blinking Red Recording LED status dot */}
+                            <circle 
+                              cx="15" 
+                              cy="11.5" 
+                              r="1" 
+                              className="fill-red-500 animate-[pulse_1.2s_infinite]" 
+                            />
+
+                            {/* Camera Focal Lens Glare dot */}
+                            <circle 
+                              cx="21.5" 
+                              cy="11.25" 
+                              r="0.75" 
+                              fill="#ffffff" 
+                              opacity="0.8"
+                            />
+                          </svg>
 
                           {/* Float visual name pin above camera node */}
                           <text
@@ -751,6 +884,18 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
                             textAnchor="middle"
                           >
                             {marker.label.slice(0, 10)}..
+                          </text>
+
+                          {/* Float camera opening width below camera node */}
+                          <text
+                            x={`${marker.x}%`}
+                            y={`${marker.y + 6.5}%`}
+                            className={`font-mono text-[7px] font-bold text-center flex justify-center text-anchor-middle ${
+                              isSelected ? "fill-cyan-400 font-extrabold" : "fill-slate-500 font-medium"
+                            }`}
+                            textAnchor="middle"
+                          >
+                            Bukaan: {marker.viewCone}°
                           </text>
                         </g>
                       );
@@ -830,7 +975,7 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
                       {/* VIEW CONE WIDTH SLIDER */}
                       <div>
                         <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest mb-1">
-                          <span>Lebar Bukaan (Fov)</span>
+                          <span>Lebar Bukaan Kamera (FOV)</span>
                           <span className="text-cyan-400 font-extrabold">{selectedMarker.viewCone}°</span>
                         </div>
                         <input
@@ -840,6 +985,23 @@ export default function CameraSketcher({ projectId, areas, currentRole }: Camera
                           disabled={currentRole === "SITE_MANAGER"}
                           value={selectedMarker.viewCone}
                           onChange={(e) => handleMarkerSettingsChange(selectedMarker.id, { viewCone: parseInt(e.target.value) })}
+                          className="w-full accent-cyan-400 cursor-pointer disabled:opacity-40"
+                        />
+                      </div>
+
+                      {/* CAMERA COVERAGE REACH RADIUS SLIDER */}
+                      <div>
+                        <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest mb-1">
+                          <span>Radius Jangkauan Kamera</span>
+                          <span className="text-cyan-400 font-extrabold">{selectedMarker.range ?? 22}% / {Math.round((selectedMarker.range ?? 22) * 1.5)}m</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="65"
+                          disabled={currentRole === "SITE_MANAGER"}
+                          value={selectedMarker.range ?? 22}
+                          onChange={(e) => handleMarkerSettingsChange(selectedMarker.id, { range: parseInt(e.target.value) })}
                           className="w-full accent-cyan-400 cursor-pointer disabled:opacity-40"
                         />
                       </div>

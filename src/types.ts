@@ -58,6 +58,7 @@ export interface CameraMarker {
   angle: number; // 0-360
   viewCone: number; // FOV angle in degrees
   targetDesc: string;
+  range?: number; // reach range of view cone (percentage 5-70)
 }
 
 export interface CameraSketch {
